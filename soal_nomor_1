@@ -1,0 +1,30 @@
+var hasil = 0;
+var hasil_pangkat = 0;
+var hasil_akhir = 0;
+var nilai_1;
+var nilai_2;
+
+var input = 2;
+
+var masukkan_ke_rumus = rumus(input);
+
+function pangkat(x){
+    hasil_pangkat = 2**x;
+    return hasil_pangkat;
+}
+
+function factorial(x){
+    nilai_1 = x;
+    nilai_2 = x-1;
+    for(i=0;i<x;i++){
+      hasil=hasil + (nilai_1*nilai_2);
+      nilai_1 = nilai_1 - 1;
+      nilai_2 = nilai_2 - 1;
+    }
+    return hasil;
+}
+
+function rumus(x){
+  hasil_akhir = factorial(x) % pangkat(x);
+  return hasil_akhir;
+}
