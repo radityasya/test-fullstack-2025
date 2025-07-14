@@ -1,0 +1,83 @@
+package main
+
+import (
+	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"log"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/redis/go-redis/v9"
+)
+
+var (
+	rdb = redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+	ctx = context.Background()
+)
+
+type User struct {
+	RealName string `json:"realname"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func main() {
+	app := fiber.New()
+
+	app.Post("/login", loginHandler)
+
+	log.Fatal(app.Listen(":3000"))
+}
+
+func loginHandler(c *fiber.Ctx) error {
+	type LoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	var body LoginRequest
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request",
+		})
+	}
+
+	key := "login_" + body.Username
+
+	val, err := rdb.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User not found",
+		})
+	} else if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Redis error",
+		})
+	}
+
+  var user User
+	if err := json.Unmarshal([]byte(val), &user); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Invalid user data",
+		})
+	}
+
+	hasher := sha1.New()
+	hasher.Write([]byte(body.Password))
+	hashedPassword := hex.EncodeToString(hasher.Sum(nil))
+
+	if hashedPassword != user.Password {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid password",
+		})
+	}
+
+  return c.JSON(fiber.Map{
+		"message":  "Login successful",
+		"realname": user.RealName,
+		"email":    user.Email,
+	})
+}
